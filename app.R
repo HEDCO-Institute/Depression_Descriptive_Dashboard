@@ -1,10 +1,11 @@
 # Script to take app data from data_cleaning.R and create the shiny app for the Descriptive Findings Dashboard
+# R version 4.2.2
 
 # Set up ---------------
 # Load packages
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(tidyverse, rio, here, DT, shiny, plotly, openxlsx, countrycode, forestplot,
-               reactable, htmltools, stringi, shinyWidgets, shinyjs)
+               reactable, htmltools, stringi, shinyWidgets, shinyjs, readr)
 
 # Read the single app data CSV created by data_cleaning.R
 merged <- readr::read_csv(here("data","app_data.csv"), show_col_types = FALSE)
@@ -27,6 +28,23 @@ classify_grade_level <- function(x) {
   if (min_g >= 9 && max_g <= 12) return("9-12")
   if (min_g <= 8 && max_g >= 9) return("K-12")
   return("Unclear")
+}
+
+# Helper function to clean urbanicity 
+clean_urbanicity <- function(x) {
+  if (is.na(x) || trimws(x) == "") return("Unclear")
+  if (tolower(trimws(x)) %in% c("cannot tell", "unclear")) return("Unclear")
+  x <- tolower(x)
+  x <- gsub("[0-9]+\\.", "", x)
+  x <- gsub("[\r\n]+", ",", x)
+  parts <- unlist(strsplit(x, "[,;]+"))
+  parts <- trimws(parts)
+  possible <- c("rural", "suburban", "urban")
+  found <- unique(parts[parts %in% possible])
+  if (length(found) == 0) return("Unclear")
+  # Capitalize each part, then collapse
+  label <- paste(sort(found), collapse = "+")
+  stringr::str_to_title(label)
 }
 
 # Define filter choices
@@ -2702,4 +2720,7 @@ server <- function(input, output, session) {
 # Run the application 
 shinyApp(ui = ui, server = server)
 
+
+# # Deploying the app
+# rsconnect::deployApp()
 
