@@ -3,9 +3,27 @@
 
 # Set up ---------------
 # Load packages
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(tidyverse, rio, here, DT, shiny, plotly, openxlsx, countrycode, forestplot,
-               reactable, htmltools, stringi, shinyWidgets, shinyjs, readr)
+# if (!require("pacman")) install.packages("pacman")
+# pacman::p_load(tidyverse, rio, here, DT, shiny, plotly, openxlsx, countrycode, forestplot,
+#                reactable, htmltools, stringi, shinyWidgets, shinyjs, readr)
+
+# Load libraries more efficiently than with pacman
+library(tidyverse)
+library(rio)
+library(here)
+library(DT)
+library(shiny)
+library(plotly)
+library(openxlsx)
+library(countrycode)
+library(forestplot)
+library(reactable)
+library(htmltools)
+library(stringi)
+library(shinyWidgets)
+library(shinyjs)
+library(readr)
+
 
 # Read the single app data CSV created by data_cleaning.R
 merged <- readr::read_csv(here("data","app_data.csv"), show_col_types = FALSE)
@@ -308,12 +326,24 @@ document.addEventListener("DOMContentLoaded", function() {
     column(12,
            div(
              style = "margin-left: 10px; margin-top: 18px; font-size: 20px",
-             "Instructions: Please XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-             XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-             XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-             XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-             XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-             XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+             HTML("
+        <b>Overview:</b>This dashboard presents data from studies included in our meta-analysis of 
+        school-based depression prevention programs. The table below shows 
+        information about each primary study (intervention, comparison, outcome, timing, 
+        and effect size). The Visualizations tab provides plots of descriptive summaries 
+        across studies.<br><br>
+
+        <b>Instructions:</b> Explore information for all included studies, or use the 
+        drop-downs to filter studies to only those with specific criteria. Changing any 
+        filter will update the number of studies, Forest Plot, and Visualizations tab.<br><br>
+
+        Hover over effect size estimates to see additional characteristics about the 
+        study. You can toggle hover information on or off using the Hover Information button.<br><br>
+
+        <b>Note:</b> The total number of studies shown reflects only those included in the 
+        meta-analysis, not all studies for which we have descriptive data."
+                  )
+             )
     )
   ),
   ### Filter dropdowns - restructured layout
