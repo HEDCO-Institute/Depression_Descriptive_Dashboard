@@ -28,6 +28,11 @@ library(readr)
 # Read the single app data CSV created by data_cleaning.R
 merged <- readr::read_csv(here("data","app_data.csv"), show_col_types = FALSE)
 
+# Check tranformations
+check <- merged %>% 
+  filter(outcome_aggregation == "Categorical") %>% 
+  select(study, yi, vi, 4:6, outcome_timepoint, ends_with("_n"), ends_with("beneficial"), ends_with("harmful"))
+
 # Calculations needed for app
 GLOBAL_MAX_N <- max(merged$number_participants, na.rm = TRUE)
 outcome_domains <- merged %>% distinct(outcome_domain) %>% pull(outcome_domain) %>% sort()
@@ -75,12 +80,23 @@ school_level_choices <- merged %>%
   as.character()
 school_level_choices <- intersect(c("K-8", "9-12", "K-12", "Unclear"), school_level_choices)
 
-urbanicity_choices <- merged %>%
+#update urbanicity choices to remove "+"
+# Urbanicity choices: show only base categories (no "+" combinations)
+urbanicity_choices_raw <- merged %>%
   distinct(urbanicity_clean) %>%
   pull(urbanicity_clean) %>%
-  as.character() %>%
+  na.omit() %>%
+  as.character()
+
+# Split combinations like "Rural+Urban" into separate base values
+urbanicity_base <- urbanicity_choices_raw[urbanicity_choices_raw != "Unclear"] %>%
+  strsplit("\\+") %>%
+  unlist() %>%
+  trimws() %>%
+  unique() %>%
   sort()
-urbanicity_choices <- c(setdiff(urbanicity_choices, "Unclear"), "Unclear")
+
+urbanicity_choices <- c(urbanicity_base, "Unclear")
 
 individual_grade_choices <- c(as.character(1:12), "Unclear")
 individual_school_type_choices <- c("Public", "Private", "Charter", "Unclear")
@@ -110,9 +126,51 @@ school_types_match_filter <- function(processed_school_types, selected_school_ty
   any(study_school_types %in% selected_school_types)
 }
 
+urbanicity_matches_filter <- function(urbanicity_value, selected_urbanicity) {
+  # Handle unclear/missing
+  if (is.na(urbanicity_value) || trimws(urbanicity_value) == "" ||
+      tolower(trimws(urbanicity_value)) %in% c("unclear", "cannot tell")) {
+    return("Unclear" %in% selected_urbanicity)
+  }
+  
+  parts <- unlist(strsplit(as.character(urbanicity_value), "\\+"))
+  parts <- trimws(parts)
+  any(parts %in% selected_urbanicity)
+}
+
+
 outcome_measures_match_filter_roots <- function(processed_outcome, selected_outcomes) {
   processed_outcome %in% selected_outcomes
 }
+
+# Data cleaning steps removed from reactive objects to increase efficiency
+merged <- merged %>% 
+  mutate(
+    grade_category = sapply(grade_level, classify_grade_level),
+    # For forest-plot tooltips
+    school_level_computed = grade_category,
+    urbanicity_computed = sapply(urbanicity, clean_urbanicity),
+    
+    # Clean numeric counts (no -999)
+    number_schools     = ifelse(number_schools     == -999, NA_real_, number_schools),
+    number_classrooms  = ifelse(number_classrooms  == -999, NA_real_, number_classrooms),
+    number_participants = ifelse(number_participants== -999, NA_real_, number_participants),
+    
+    # Clean continuous demographics
+    average_age  = ifelse(average_age  == -999, NA_real_, average_age),
+    percent_female = ifelse(percent_female == -999, NA_real_, percent_female),
+    percent_FRPL   = ifelse(percent_FRPL   == -999, NA_real_, percent_FRPL),
+    percent_ELL    = ifelse(percent_ELL    == -999, NA_real_, percent_ELL),
+    
+    # Clean race/ethnicity (used in plot + tooltips)
+    percent_white  = ifelse(percent_white  == -999, NA_real_, percent_white),
+    percent_black = ifelse(percent_black  == -999, NA_real_, percent_black),
+    percent_aian   = ifelse(percent_aian   == -999, NA_real_, percent_aian),
+    percent_nhpi   = ifelse(percent_nhpi   == -999, NA_real_, percent_nhpi),
+    percent_asian  = ifelse(percent_asian  == -999, NA_real_, percent_asian),
+    percent_latinx = ifelse(percent_latinx == -999, NA_real_, percent_latinx),
+    percent_other  = ifelse(percent_other  == -999, NA_real_, percent_other)
+  )
 
 # UI ---------------------------------------------------------
 # Define UI for application
@@ -317,7 +375,7 @@ document.addEventListener("DOMContentLoaded", function() {
   # Application title
   fluidRow(
     column(12,
-           div(class = "title-panel", "School-based Interventions to Reduce Depression")
+           div(class = "title-panel", "Findings From School-Based Depression Prevention Research")
     )
   ),
   
@@ -327,8 +385,8 @@ document.addEventListener("DOMContentLoaded", function() {
            div(
              style = "margin-left: 10px; margin-top: 18px; font-size: 20px",
              HTML("
-        <b>Overview:</b>This dashboard presents data from studies included in our meta-analysis of 
-        school-based depression prevention programs. The table below shows 
+        <b>Overview:</b> This dashboard presents data from studies included in our meta-analysis of 
+        school-based depression prevention programs. The Forest Plot shows 
         information about each primary study (intervention, comparison, outcome, timing, 
         and effect size). The Visualizations tab provides plots of descriptive summaries 
         across studies.<br><br>
@@ -337,7 +395,7 @@ document.addEventListener("DOMContentLoaded", function() {
         drop-downs to filter studies to only those with specific criteria. Changing any 
         filter will update the number of studies, Forest Plot, and Visualizations tab.<br><br>
 
-        Hover over effect size estimates to see additional characteristics about the 
+        Hover over effect size estimates to see additional information about the 
         study. You can toggle hover information on or off using the Hover Information button.<br><br>
 
         <b>Note:</b> The total number of studies shown reflects only those included in the 
@@ -531,7 +589,7 @@ document.addEventListener("DOMContentLoaded", function() {
                column(12,
                       div(
                         style = "margin-left: 10px; margin-top: 22px; font-size: 18px",
-                        "Standardized Mean Difference (SMD) in Depression Symptoms"
+                        "Standardized Mean Difference (SMD) in from Depression Prevention Interventions"
                       ),
                       div(
                         style = "margin-left: 10px; margin-top: 6px; font-size: 16px",
@@ -539,7 +597,7 @@ document.addEventListener("DOMContentLoaded", function() {
                       ),
                       div(
                         style = "margin-left: 10px; margin-top: 6px; margin-bottom: 6px; font-size: 14px",
-                        "* Only SMDs for continuous outcomes are displayed in this table, to allow for accurate comparisons."
+                        "*Outcomes where effect size was originally reported as categorical in our meta-analysis (e.g., odds ratio) but re-computed to SMD for comparison in this table."
                       ),
                       reactableOutput("forest_tbl", width = "100%")
                )
@@ -680,11 +738,11 @@ server <- function(input, output, session) {
     }
     
     data <- merged %>%
-      mutate(grade_category = sapply(grade_level, classify_grade_level)) %>%
+      #mutate(grade_category = sapply(grade_level, classify_grade_level)) %>% # Moved to front so not recomputed each time.
       filter(outcome_domain %in% input$outcome_domains) %>%
       filter(country %in% input$country_filter) %>%
       filter(grade_category %in% input$school_level_filter) %>%
-      filter(urbanicity_clean %in% input$urbanicity_filter) %>%
+      filter(sapply(urbanicity_clean, urbanicity_matches_filter, selected_urbanicity = input$urbanicity_filter))%>%
       filter(sapply(processed_grades, function(x) grades_match_filter(x, input$individual_grade_filter))) %>%
       filter(sapply(processed_school_types, function(x) school_types_match_filter(x, input$individual_school_type_filter))) %>%
       filter(processed_outcome_measure_roots %in% input$outcome_family_filter) %>%
@@ -1053,7 +1111,7 @@ server <- function(input, output, session) {
     }
     
     studies_clean <- data %>%
-      mutate(number_schools = ifelse(number_schools == -999, NA, number_schools)) %>%
+      #mutate(number_schools = ifelse(number_schools == -999, NA, number_schools)) %>% # Moved to pre-UI to speed up app
       filter(!is.na(number_schools)) %>%
       distinct(study_author_year, .keep_all = TRUE) %>%
       mutate(
@@ -1143,7 +1201,7 @@ server <- function(input, output, session) {
     }
     
     studies_clean <- data %>%
-      mutate(number_classrooms = ifelse(number_classrooms == -999, NA, number_classrooms)) %>%
+      #mutate(number_classrooms = ifelse(number_classrooms == -999, NA, number_classrooms)) %>%
       filter(!is.na(number_classrooms)) %>%
       distinct(study_author_year, .keep_all = TRUE) %>%
       mutate(
@@ -1223,7 +1281,7 @@ server <- function(input, output, session) {
     p
   })
   
-  ############################################################################
+ 
   # Number of students plot - UPDATED
   output$num_students_tile <- renderPlotly({
     hover_is_on <- hover_enabled()
@@ -1231,7 +1289,7 @@ server <- function(input, output, session) {
     if (nrow(data) == 0) return(create_compact_no_data_plot())
     
     studies_clean <- data %>%
-      mutate(number_participants = ifelse(number_participants == -999, NA, number_participants)) %>%
+      #mutate(number_participants = ifelse(number_participants == -999, NA, number_participants)) %>%
       filter(!is.na(number_participants) & number_participants > 0) %>%
       distinct(study_author_year, .keep_all = TRUE) %>%
       mutate(
@@ -1276,8 +1334,7 @@ server <- function(input, output, session) {
     ")
   })
   
-  
-  ##################################################################################
+
   # Average age graph - UPDATED
   output$avg_age <- renderPlotly({
     hover_is_on <- hover_enabled()
@@ -1288,7 +1345,7 @@ server <- function(input, output, session) {
     }
     
     studies_clean <- data %>%
-      mutate(average_age = ifelse(average_age == -999, NA, average_age)) %>%
+      #mutate(average_age = ifelse(average_age == -999, NA, average_age)) %>%
       filter(!is.na(average_age)) %>%
       distinct(study_author_year, .keep_all = TRUE) %>%
       mutate(
@@ -1368,8 +1425,8 @@ server <- function(input, output, session) {
     p
   })
   
-  ##################################################################################
-  # Female graph - UPDATED
+  
+  # Female graph - UPDATED #######################
   output$pct_fem <- renderPlotly({
     hover_is_on <- hover_enabled()
     data <- filtered_data()
@@ -1379,7 +1436,7 @@ server <- function(input, output, session) {
     }
     
     studies_clean <- data %>%
-      mutate(percent_female = ifelse(percent_female == -999, NA, percent_female)) %>%
+      #mutate(percent_female = ifelse(percent_female == -999, NA, percent_female)) %>%
       filter(!is.na(percent_female)) %>%
       distinct(study_author_year, .keep_all = TRUE) %>%
       mutate(percent_female = percent_female * 100) %>%
@@ -1460,8 +1517,8 @@ server <- function(input, output, session) {
     p
   })
   
-  ###############################################
-  # Race/ethnicity graph - UPDATED
+ 
+  # Race/ethnicity graph - UPDATED  ###############################################
   output$race_ethnicity_graph <- renderPlotly({
     hover_is_on <- hover_enabled()
     
@@ -1475,15 +1532,15 @@ server <- function(input, output, session) {
       group_by(study) %>%
       slice(1) %>%
       ungroup() %>%
-      mutate(
-        percent_white = as.numeric(ifelse(percent_white == -999, NA, percent_white)),
-        percent_black = as.numeric(ifelse(percent_black == -999, NA, percent_black)),
-        percent_aian = as.numeric(ifelse(percent_aian == -999, NA, percent_aian)),
-        percent_nhpi = as.numeric(ifelse(percent_nhpi == -999, NA, percent_nhpi)),
-        percent_asian = as.numeric(ifelse(percent_asian == -999, NA, percent_asian)),
-        percent_latinx = as.numeric(ifelse(percent_latinx == -999, NA, percent_latinx)),
-        percent_other = as.numeric(ifelse(percent_other == -999, NA, percent_other))
-      ) %>%
+      # mutate(
+      #   percent_white = as.numeric(ifelse(percent_white == -999, NA, percent_white)),
+      #   percent_black = as.numeric(ifelse(percent_black == -999, NA, percent_black)),
+      #   percent_aian = as.numeric(ifelse(percent_aian == -999, NA, percent_aian)),
+      #   percent_nhpi = as.numeric(ifelse(percent_nhpi == -999, NA, percent_nhpi)),
+      #   percent_asian = as.numeric(ifelse(percent_asian == -999, NA, percent_asian)),
+      #   percent_latinx = as.numeric(ifelse(percent_latinx == -999, NA, percent_latinx)),
+      #   percent_other = as.numeric(ifelse(percent_other == -999, NA, percent_other))
+      # ) %>%
       summarise(
         White = mean(percent_white, na.rm = TRUE),
         Black = mean(percent_black, na.rm = TRUE),
@@ -1536,8 +1593,8 @@ server <- function(input, output, session) {
       config(displayModeBar = FALSE, responsive = TRUE)
   })
   
-  ###################################################################################
-  # FRPL Graph - UPDATED
+
+  # FRPL Graph - UPDATED  ###############################################
   output$frpl_graph <- renderPlotly({
     hover_is_on <- hover_enabled()
     
@@ -1548,7 +1605,7 @@ server <- function(input, output, session) {
     }
     
     studies_clean <- data %>% 
-      mutate(percent_FRPL = ifelse(percent_FRPL == -999, NA, percent_FRPL)) %>%
+      #mutate(percent_FRPL = ifelse(percent_FRPL == -999, NA, percent_FRPL)) %>%
       filter(!is.na(percent_FRPL)) %>%
       mutate(percent_FRPL = percent_FRPL * 100) %>%
       distinct(study_author_year, .keep_all = TRUE) %>%
@@ -1629,8 +1686,8 @@ server <- function(input, output, session) {
     p
   })
   
-  ###################################################################################
-  # ELL Graph - UPDATED
+
+  # ELL Graph - UPDATED  ###############################################
   output$ell_graph <- renderPlotly({
     hover_is_on <- hover_enabled()
     
@@ -1641,7 +1698,7 @@ server <- function(input, output, session) {
     }
     
     studies_clean <- data %>% 
-      mutate(percent_ELL = ifelse(percent_ELL == -999, NA, percent_ELL)) %>%
+      #mutate(percent_ELL = ifelse(percent_ELL == -999, NA, percent_ELL)) %>%
       filter(!is.na(percent_ELL)) %>%
       filter(is.finite(percent_ELL)) %>%
       mutate(percent_ELL = percent_ELL * 100) %>%
@@ -1726,8 +1783,8 @@ server <- function(input, output, session) {
     p
   })
   
-  ###################################################################################
-  # Outcome families 
+  
+  # Outcome families   ###############################################
   # Add reactive value to track which plot is shown
   # Reactive value to track which plot is shown
   outcomes_page_selected <- reactiveVal(1)  # 1 for ">2 studies", 2 for "<2 studies"
@@ -1905,9 +1962,9 @@ server <- function(input, output, session) {
   
   
   
-  ##################################################################################
-  ### Forest Plot Code with Hover Tooltips and Categorical Outcome Handling
-  ##################################################################################
+ 
+  # Forest Plot Code with Hover Tooltips and Categorical Outcome Handling  ###############################################
+
   
   # 1. HELPER FUNCTIONS
   safe_format_list <- function(list_value, default_text = "Not specified") {
@@ -2139,8 +2196,8 @@ server <- function(input, output, session) {
         ),
         htmltools::tags$circle(
           cx = scale(yi), cy = center_y, r = r,
-          fill = ifelse(yi < -0.03, "#007030",
-                        ifelse(yi > 0.03, "#E0C311", "#B0B0B0")),
+          fill = ifelse(yi < -0.03, "#8ABB40",
+                        ifelse(yi > 0.03, "#8D1D58", "#B0B0B0")),
           stroke = "#222", "stroke-width" = 1
         )
       )
@@ -2215,8 +2272,8 @@ server <- function(input, output, session) {
           processed_school_types = processed_school_types,
           outcome_measure_specific = outcome_measure,
           country = if("country" %in% names(filtered)) country else NA_character_,
-          school_level_computed = if("grade_level" %in% names(filtered)) sapply(grade_level, classify_grade_level) else NA_character_,
-          urbanicity_computed = if("urbanicity" %in% names(filtered)) sapply(urbanicity, clean_urbanicity) else NA_character_,
+          school_level_computed = school_level_computed, #if("grade_level" %in% names(filtered)) sapply(grade_level, classify_grade_level) else NA_character_,
+          urbanicity_computed = urbanicity_computed, #if("urbanicity" %in% names(filtered)) sapply(urbanicity, clean_urbanicity) else NA_character_,
           number_schools = if("number_schools" %in% names(filtered)) number_schools else NA_real_,
           number_classrooms = if("number_classrooms" %in% names(filtered)) number_classrooms else NA_real_,
           number_participants = number_participants,
@@ -2306,17 +2363,41 @@ server <- function(input, output, session) {
           is_categorical_outcome <- !is.na(orig_data$outcome_aggregation) && 
             orig_data$outcome_aggregation == "Categorical"
           
-          if (is_categorical_outcome) {
-            # Categorical outcome: use * for SMD, CI, and Effect Size
-            smd_display <- "*"
-            ci_display <- "*"
-            effect_size_display <- "*"
-          } else {
+          # if (is_categorical_outcome) {
+          #   # Categorical outcome: use * for SMD, CI, and Effect Size
+          #   smd_display <- "*"
+          #   ci_display <- "*"
+          #   effect_size_display <- "*"
+          # } else {
             # Continuous outcome: normal processing
-            if (is.na(orig_data$SMD) || orig_data$SMD == "" || is.na(orig_data$n)) {
-              return("")
-            }
-            
+            # if (is.na(orig_data$SMD) || orig_data$SMD == "" || is.na(orig_data$n)) {
+            #   return("")
+            # }
+            # 
+            # smd_val <- as.numeric(orig_data$SMD)
+            # smd_display <- orig_data$SMD
+            # ci_display <- paste0("[", round(orig_data$lower, 3), ", ", round(orig_data$upper, 3), "]")
+            # 
+            # effect_size_display <- if (abs(smd_val) >= 2) {
+            #   "Very Large"
+            # } else if (abs(smd_val) >= 1) {
+            #   "Large"
+            # } else if (abs(smd_val) >= 0.5) {
+            #   "Medium"
+            # } else if (abs(smd_val) >= 0.2) {
+            #   "Small"
+            # } else {
+            #   "Very Small/Null"
+            # }
+          
+          has_smd <- !is.na(orig_data$SMD) && orig_data$SMD != ""
+          
+          if (!has_smd) {
+            # No yi/vi: explicitly say not reported
+            smd_display <- "Not reported"
+            ci_display <- "Not applicable"
+            effect_size_display <- "Could not compute SMD"
+          } else {
             smd_val <- as.numeric(orig_data$SMD)
             smd_display <- orig_data$SMD
             ci_display <- paste0("[", round(orig_data$lower, 3), ", ", round(orig_data$upper, 3), "]")
@@ -2333,6 +2414,8 @@ server <- function(input, output, session) {
               "Very Small/Null"
             }
           }
+          
+          #}
           ################################################################################
           ### CATEGORICAL OUTCOME HANDLING - END (SECTION 2 of 3)
           ################################################################################
@@ -2346,9 +2429,28 @@ server <- function(input, output, session) {
             orig_data$percent_other
           )
           
+          # Build tooltip text, with special note for categorical rows
           tooltip_parts <- c(
             paste0("SMD: <b>", smd_display, "</b>"),
-            paste0("95% CI: <b>", ci_display, "</b>"),
+            paste0("95% CI: <b>", ci_display, "</b>")
+          )
+          
+          if (is_categorical_outcome && has_smd) {
+            tooltip_parts <- c(
+              tooltip_parts,
+              "Note: This effect was originally reported as categorical but re-computed as a standardized mean difference."
+            )
+          } else if (is_categorical_outcome && !has_smd) {
+            tooltip_parts <- c(
+              tooltip_parts,
+              "Note: This outcome was reported as categorical without enough information to compute a standardized mean difference."
+            )
+          }
+          
+          tooltip_parts <- c(
+            tooltip_parts,
+            #paste0("SMD: <b>", smd_display, "</b>"),
+            #paste0("95% CI: <b>", ci_display, "</b>"),
             paste0("Effect Size: <b>", effect_size_display, "</b>"),
             "",
             paste0("Country: <b>", format_viz_value(orig_data$country), "</b>"),
@@ -2384,31 +2486,31 @@ server <- function(input, output, session) {
       ### CATEGORICAL OUTCOME HANDLING - START (SECTION 3 of 3)
       ### Replace forest plots with "*" for categorical outcomes BUT keep tooltips
       ################################################################################
-      for (i in which(is_categorical)) {
-        # Get the tooltip HTML for this row
-        tooltip_content <- tooltip_html_texts[i]
-        
-        # Create a full-cell div with * that includes hover tooltip functionality
-        if (!is.null(tooltip_content) && tooltip_content != "" && hover_state) {
-          svg_list[[i]] <- sprintf(
-            '<div class="forest-tooltip" style="width: 100%%; height: 100%%; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;">
-        <span style="font-size: 24px; font-weight: bold;">*</span>
-        <div class="tooltip-content" id="tooltip-%s">%s</div>
-      </div>',
-            sample(1:999999, 1),
-            tooltip_content
-          )
-        } else {
-          # No tooltip - just show the asterisk
-          svg_list[[i]] <- '<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;"><span style="font-size: 24px; font-weight: bold;">*</span></div>'
-        }
-      }
+      # for (i in which(is_categorical)) {
+      #   # Get the tooltip HTML for this row
+      #   tooltip_content <- tooltip_html_texts[i]
+      #   
+      #   # Create a full-cell div with * that includes hover tooltip functionality
+      #   if (!is.null(tooltip_content) && tooltip_content != "" && hover_state) {
+      #     svg_list[[i]] <- sprintf(
+      #       '<div class="forest-tooltip" style="width: 100%%; height: 100%%; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;">
+      #   <span style="font-size: 24px; font-weight: bold;">*</span>
+      #   <div class="tooltip-content" id="tooltip-%s">%s</div>
+      # </div>',
+      #       sample(1:999999, 1),
+      #       tooltip_content
+      #     )
+      #   } else {
+      #     # No tooltip - just show the asterisk
+      #     svg_list[[i]] <- '<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;"><span style="font-size: 24px; font-weight: bold;">*</span></div>'
+      #   }
+      # }
       
-      merged_forest$` ` <- as.list(svg_list)
-      
-      # NOW convert SMD to character and replace categorical with "*"
-      merged_forest$SMD <- as.character(merged_forest$SMD)
-      merged_forest$SMD[is_categorical] <- "*"      
+      # merged_forest$` ` <- as.list(svg_list)
+      # 
+      # # NOW convert SMD to character and replace categorical with "*"
+      # merged_forest$SMD <- as.character(merged_forest$SMD)
+      # merged_forest$SMD[is_categorical] <- "*"      
       ################################################################################
       ### CATEGORICAL OUTCOME HANDLING - END (SECTION 3 of 3)
       ################################################################################
@@ -2421,6 +2523,17 @@ server <- function(input, output, session) {
       )
       merged_forest <- merged_forest[, display_cols, drop = FALSE]
       merged_forest <- tibble::as_tibble(merged_forest)
+      
+      # Convert numeric SMD to a display string
+      merged_forest <- merged_forest %>%
+        dplyr::mutate(
+          SMD = dplyr::case_when(
+            is.na(SMD) ~ "NA",
+            TRUE ~ sprintf("%.3f", as.numeric(SMD))
+          )
+        )
+      
+      
     }
     
     # Reactable with hover-enabled cells
@@ -2528,14 +2641,30 @@ server <- function(input, output, session) {
           },
           headerStyle = list(borderBottom = "3px solid #333", borderTop = "3px solid #333")
         ),
+        # `Outcome Measure` = colDef(
+        #   name = "Outcome Measure",
+        #   minWidth = 200,
+        #   sortable = FALSE,
+        #   html = TRUE,
+        #   cell = function(value, index) {
+        #     original_value <- original_forest_pre_blank$`Outcome Measure`[index]
+        #     create_cell_with_hover(value, original_value, "measure", index)
+        #   },
         `Outcome Measure` = colDef(
           name = "Outcome Measure",
           minWidth = 200,
           sortable = FALSE,
           html = TRUE,
           cell = function(value, index) {
+            # Add * to displayed outcome name for categorical outcomes
+            display_value <- value
+            if (!is.null(display_value) && !is.na(display_value) && display_value != "" &&
+                !is.null(is_categorical) && length(is_categorical) >= index && is_categorical[index]) {
+              display_value <- paste0(display_value, " *")
+            }
+            
             original_value <- original_forest_pre_blank$`Outcome Measure`[index]
-            create_cell_with_hover(value, original_value, "measure", index)
+            create_cell_with_hover(display_value, original_value, "measure", index)
           },
           style = function(value, index) {
             style_list <- list(

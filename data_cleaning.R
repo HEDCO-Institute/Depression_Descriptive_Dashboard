@@ -3,7 +3,7 @@
 # Purpose: run the original data import/clean/merge steps and export one CSV the app will load.
 
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(tidyverse, rio, here, readxl, stringi)
+pacman::p_load(tidyverse, rio, here, readxl, stringi, metafor)
 
 # Import data - Get all outcome domains
 outcome_domains_sheets <- readxl::excel_sheets(here("Data", "Depression_Overview_Meta_Analysis_Data.xlsx"))
@@ -258,8 +258,92 @@ merged_all_domains <- merged_all_domains %>%
 # Apply intervention processing
 merged_all_domains$processed_intervention_roots <- process_intervention_roots(merged_all_domains$intervention)
 
-# Use ALL data by default (as in your original)
-merged <- merged_all_domains
+# Categorical effect size transformation prep (11/24/25)
+merged_td <- merged_all_domains %>% 
+  mutate(
+    yi_raw = yi,
+    vi_raw = vi,
+    row_id = dplyr::row_number(),
+    has_2x2 = !is.na(intervention_beneficial) &
+              !is.na(intervention_harmful) &
+              !is.na(comparison_beneficial) &
+              !is.na(comparison_harmful),
+    has_chi = !is.na(es_chi_pvalue),
+    cat_smd_method = dplyr::case_when(
+                            outcome_aggregation == "Categorical" & has_2x2  ~ "from_2x2",
+                            outcome_aggregation == "Categorical" & !has_2x2 ~ "no_2x2",
+                            TRUE ~ NA_character_)
+    )
+
+
+
+# SMD from 2x2 tables using metafor::escalc
+cat_2x2 <- merged_td %>%
+  filter(cat_smd_method == "from_2x2")
+
+cat_2x2_es <- metafor::escalc(
+  measure = "OR2DL",           # or "OR2DN" if you prefer normal distribution
+  ai = intervention_beneficial,
+  bi = intervention_harmful, 
+  ci = comparison_beneficial,
+  di = comparison_harmful,
+  data = cat_2x2,
+  append = TRUE,               # keep all original columns
+  replace = TRUE              # overwrite any existing yi/vi accidentally
+)
+#escalc recomputes from the raw 2×2 table and then does the OR→SMD transform.
+
+cat_2x2_smd <- cat_2x2_es %>%
+  select(row_id, yi_smd = yi, vi_smd = vi) 
+
+# SMD from chi-square only rows with Campbell formula
+# cat_chi <- merged %>%
+#   filter(cat_smd_method == "from_chi") %>%
+#   mutate(
+#     n1 = coalesce(followup_intervention_n, baseline_intervention_n),
+#     n2 = coalesce(followup_comparison_n,   baseline_comparison_n),
+#     total_n = n1 + n2,
+#     
+#     chi2 = qchisq(1 - es_chi_pvalue, df = 1),
+#     
+#     d_abs = 2 * sqrt(chi2 / (total_n - chi2)),
+#     
+#     # DO NOT USE sign(yi_raw)!
+#     # Instead use original direction variable if you have one
+#     direction = ifelse(!is.na(effect_direction), effect_direction, 1),
+#     
+#     yi_smd = d_abs * direction,
+#     
+#     vi_smd = 4 * total_n / ((total_n - 1) * (total_n - chi2))
+#   ) %>%
+#   select(row_id, yi_smd, vi_smd)
+
+
+
+# Combine
+# Bind all categorical SMDs together
+cat_smd_all <- cat_2x2_smd #dplyr::bind_rows(cat_2x2_smd, cat_chi_smd)
+
+# Join back and overwrite yi/vi only where SMDs are available
+merged <- merged_td %>%
+  dplyr::left_join(cat_smd_all, by = "row_id") %>%
+  dplyr::mutate(
+    yi = dplyr::case_when(
+      #Categorical with 2x2 → use SMD
+      cat_smd_method == "from_2x2" & !is.na(yi_smd) ~ yi_smd,
+      #Categorical without 2x2 → treat as "not reported"
+      cat_smd_method == "no_2x2"                    ~ NA_real_,
+      #Everything else → keep original
+      TRUE                                          ~ yi_raw
+    ),
+    vi = dplyr::case_when(
+      cat_smd_method == "from_2x2" & !is.na(vi_smd) ~ vi_smd,
+      cat_smd_method == "no_2x2"                    ~ NA_real_,
+      TRUE                                          ~ vi_raw
+    )
+  ) %>%
+  dplyr::select(-yi_smd, -vi_smd)   # optional: drop temporary columns
+
 
 # Export single CSV for the app to load
 
