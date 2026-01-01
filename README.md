@@ -25,7 +25,7 @@ The following datasets used for the dashboard are available in the `data` subfol
 
 | Data File | Description | Data Structure |
 |-----------|-------------|-----------| 
-| `app_data.csv` | Extracted descriptive data for eligible reviews | One row per eligible review | 
+| `app_data.csv` | Cleaned data to create the dashboard | One row per eligible study | 
 | `Depression_Overview_Meta_Analysis_Primary_Study_Data.xlsx` | Extracted descriptive data for eligible primary studies | One row per eligible primary study |
 | `Depression_Overview_Meta_Analysis_Data.xlsx` | Extracted effect size data for eligible primary studies | One row per effect size (outcome + group + timepoint)|
 <br>
