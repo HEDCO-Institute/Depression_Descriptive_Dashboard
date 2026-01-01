@@ -46,7 +46,7 @@ To replicate our results:
 
 **If you have Rstudio and Git installed and connected to your GitHub account:**
 
-1. Clone the [repository](https://github.com/HEDCO-Institute/Depression_Prevention_Demographics) to your local machine ([click for help](https://book.cds101.com/using-rstudio-server-to-clone-a-github-repo-as-a-new-project.html#step---2))
+1. Clone the [repository](https://github.com/HEDCO-Institute/Depression_Descriptive_Dashboard) to your local machine ([click for help](https://book.cds101.com/using-rstudio-server-to-clone-a-github-repo-as-a-new-project.html#step---2))
 1. Open the `Depression_Descriptive_Dashboard.Rproj` R project in R Studio (this should automatically activate the `renv` environment)
 1. Open and run the `app.R` script 
 
@@ -60,7 +60,7 @@ To replicate our results:
 
 **To reproduce our results without using Git and GitHub, you may use the following steps:** 
 
-1. Download the ZIP file from the [repository](https://github.com/HEDCO-Institute/Depression_Prevention_Demographics)
+1. Download the ZIP file from the [repository](https://github.com/HEDCO-Institute/Depression_Descriptive_Dashboard)
 1. Extract all files to your local machine
 1. Open the `Depression_Descriptive_Dashboard.Rproj` R project in R Studio (this will automatically set the working directory and activate the `renv` environment)
 1. Open and run the `app.R` script 
