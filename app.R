@@ -385,8 +385,9 @@ document.addEventListener("DOMContentLoaded", function() {
            div(
              style = "margin-left: 10px; margin-top: 18px; font-size: 20px",
              HTML("
-        <b>Overview:</b> This dashboard presents data from studies included in our meta-analysis of 
-        school-based depression prevention programs. The Forest Plot shows 
+        <b>Overview:</b> This dashboard presents data from studies included in our <a href='https://github.com/HEDCO-Institute/Depression_prevention_overview' target='_blank'>
+          meta-analysis of school-based depression prevention programs
+        </a>. The Forest Plot shows 
         information about each primary study (intervention, comparison, outcome, timing, 
         and effect size). The Visualizations tab provides plots of descriptive summaries 
         across studies.<br><br>
