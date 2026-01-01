@@ -1,12 +1,12 @@
 # Depression Prevention Descriptive Dashboard
 
 **Date of Release:** 10/29/2025  
-**Title:** Depression Descriptive Dashboard<br>
+**Title:** Findings From School-Based Depression Prevention Research<br>
 **Repo Authors:** Aden Bhagwat & Shaina Trevino 
 
 ## **🔹 Overview**
 
-This repository contains the code and data to produce our interactive [Depression Depression Descriptive Dashboard](https://hedco-institute.shinyapps.io/depression_descriptive_dashboard/). 
+This repository contains the code and data to produce our interactive [Depression Prevention Descriptive Dashboard](https://hedco-institute.shinyapps.io/depression_descriptive_dashboard/). 
 
 This repository follows **[AEA Data and Code Availability Standards](https://datacodestandard.org/)** and includes:
 - Datasets used to generate reported results.
