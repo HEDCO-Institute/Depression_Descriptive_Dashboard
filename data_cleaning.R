@@ -12,6 +12,27 @@ outcome_domains_sheets <- readxl::excel_sheets(here("Data", "Depression_Overview
 outcome_domains_sheets <- outcome_domains_sheets[outcome_domains_sheets != "metadata"]
 studies <- import(here("Data", "Depression_Overview_Primary_Study_Data.xlsx"), which= "study_level")
 
+# Extract study ID crosswalk
+study_by_fm_id <- studies %>% select(primary_study_id, study_author_year)
+
+# Import all ROB data and clean for merging
+irob <- import(here("Data", "Depression_Overview_Primary_Study_Data.xlsx"), which= "iROB") %>% 
+  select(primary_study_id, contains("overall"), -contains("explanation")) %>% 
+  rename(overall_rating = iROB_overall_rating)
+
+crob <- import(here("Data", "Depression_Overview_Primary_Study_Data.xlsx"), which= "cROB") %>% 
+  select(primary_study_id, contains("overall"), -contains("explanation")) %>% 
+  rename(overall_rating = cROB_overall_rating)
+  
+robinsi <- import(here("Data", "Depression_Overview_Primary_Study_Data.xlsx"), which= "ROBINS-I") %>% 
+  select(primary_study_id, contains("overall"), -contains("explanation")) %>% 
+  rename(overall_rating = robins_overall_rating)
+
+rob_all <- rbind(irob, crob, robinsi) %>% 
+  left_join(study_by_fm_id) %>% 
+  mutate(overall_rating = str_remove(overall_rating, "^\\d+\\.\\s*"))
+
+
 # Load all domain sheets and combine
 load_all_domains <- function(domains) {
   all_data <- list()
@@ -51,6 +72,7 @@ studies$study_author_year[studies$study_author_year == "McLaughlin 2010"] <- "Mc
 # Standardize keys
 all_domains_df <- all_domains_df %>% mutate(study_std = standardize(study))
 studies <- studies %>% mutate(study_author_year_std = standardize(study_author_year))
+rob_all <- rob_all %>% mutate(study_author_year_std = standardize(study_author_year)) 
 
 # Create the full merged dataset with all domains
 merged_all_domains <- all_domains_df %>%
@@ -58,7 +80,9 @@ merged_all_domains <- all_domains_df %>%
     studies,
     by = c("study_std" = "study_author_year_std"),
     suffix = c(".df", ".studies")
-  )
+  ) %>% 
+  left_join(rob_all, by = c("study_std" = "study_author_year_std")) %>% 
+  dplyr::select(-dplyr::ends_with(".y"))
 
 # Handle duplicate columns
 dup_bases <- intersect(
@@ -342,7 +366,9 @@ merged <- merged_td %>%
       TRUE                                          ~ vi_raw
     )
   ) %>%
-  dplyr::select(-yi_smd, -vi_smd)   # optional: drop temporary columns
+  dplyr::select(-yi_smd, -vi_smd,
+                -ends_with(".x"),
+                -study_std) 
 
 
 # Export single CSV for the app to load
