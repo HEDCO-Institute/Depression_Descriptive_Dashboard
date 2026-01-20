@@ -383,26 +383,39 @@ document.addEventListener("DOMContentLoaded", function() {
   fluidRow(
     column(12,
            div(
-             style = "margin-left: 10px; margin-top: 18px; font-size: 20px",
+             style = "margin-left: 10px; margin-top: 14px; font-size: 20px",
              HTML("
-        <b>Overview:</b> This dashboard presents data from studies included in our <a href='https://github.com/HEDCO-Institute/Depression_prevention_overview' target='_blank'>
-          meta-analysis of school-based depression prevention programs</a>. The Forest Plot tab shows 
-        information about each primary study (intervention, comparison, outcome, timing, 
-        and effect size). The Visualizations tab provides plots of descriptive summaries 
-        across studies.<br><br>
-
-        <b>Instructions:</b> Explore information for all included studies, or use the 
-        drop-downs to filter studies based on specific criteria. Changing any 
-        filter will update the number of studies, as well as data in the Forest Plot and Visualizations tab.<br><br>
-
-        Intervention effects will display as a dot in the middle column. Hover over to see more details.<br><br>
-
-        <b>Note:</b> The total number of studies shown reflects only those included in the 
-        meta-analysis, not all studies for which we have descriptive data."
-                  )
-             )
+        Explore information for all included studies, or use the
+        drop-downs to filter studies based on specific criteria. 
+        Scroll below the dashboard for additional information on what's reported<br><br>
+      ")
+           )
     )
   ),
+  
+  # fluidRow(
+  #   column(12,
+  #          div(
+  #            style = "margin-left: 10px; margin-top: 18px; font-size: 20px",
+  #            HTML("
+  #       <b>Overview:</b> This dashboard presents data from studies included in our <a href='https://github.com/HEDCO-Institute/Depression_prevention_overview' target='_blank'>
+  #         meta-analysis of school-based depression prevention programs</a>. The Forest Plot tab shows 
+  #       information about each primary study (intervention, comparison, outcome, timing, 
+  #       and effect size). The Visualizations tab provides plots of descriptive summaries 
+  #       across studies.<br><br>
+  # 
+  #       <b>Instructions:</b> Explore information for all included studies, or use the 
+  #       drop-downs to filter studies based on specific criteria. Changing any 
+  #       filter will update the number of studies, as well as data in the Forest Plot and Visualizations tab.<br><br>
+  # 
+  #       Intervention effects will display as a dot in the middle column. Hover over to see more details.<br><br>
+  # 
+  #       <b>Note:</b> The total number of studies shown reflects only those included in the 
+  #       meta-analysis, not all studies for which we have descriptive data."
+  #                 )
+  #            )
+  #   )
+  # ),
   ### Filter dropdowns - restructured layout
   fluidRow(
     # Count of studies on the left
@@ -524,7 +537,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     div(style = "margin-top: 12px;"),
                     pickerInput(
                       inputId = "outcome_family_filter",
-                      label = "Outcome Measure Name",
+                      label = "Outcome Measure",
                       choices = outcome_measure_family_choices,
                       selected = outcome_measure_family_choices,
                       multiple = TRUE,
@@ -1826,9 +1839,9 @@ server <- function(input, output, session) {
       div(
         style = "margin-left: 10px; margin-top: 22px; font-size: 18px",
         if (current_page == 1) {
-          paste0("Outcome Measure Names Used in >2 Studies")
+          paste0("Outcome Measures Used in >2 Studies")
         } else {
-          paste0("Outcome Measure Names Used in ≤2 Studies")
+          paste0("Outcome Measures Used in ≤2 Studies")
         }
       ),
       div(
@@ -2444,7 +2457,8 @@ server <- function(input, output, session) {
           # Build tooltip text, with special note for categorical rows
           tooltip_parts <- c(
             paste0("SMD: <b>", smd_display, "</b>"),
-            paste0("95% CI: <b>", ci_display, "</b>")
+            paste0("95% CI: <b>", ci_display, "</b>"),
+            paste0("Risk of Bias: <b>", orig_data$overall_rating, "</b>")
           )
           
           if (is_categorical_outcome && has_smd) {
@@ -2463,7 +2477,7 @@ server <- function(input, output, session) {
             tooltip_parts,
             #paste0("SMD: <b>", smd_display, "</b>"),
             #paste0("95% CI: <b>", ci_display, "</b>"),
-            paste0("Effect Size: <b>", effect_size_display, "</b>"),
+            #paste0("Effect Size: <b>", effect_size_display, "</b>"),
             "",
             paste0("Country: <b>", format_viz_value(orig_data$country), "</b>"),
             paste0("School Level: <b>", format_viz_value(orig_data$school_level_computed), "</b>"),
@@ -2477,8 +2491,8 @@ server <- function(input, output, session) {
             paste0("% Female: <b>", format_viz_value(orig_data$percent_female, TRUE), "</b>"),
             paste0("% FRPL: <b>", format_viz_value(orig_data$percent_FRPL, TRUE), "</b>"),
             paste0("% ELL: <b>", format_viz_value(orig_data$percent_ELL, TRUE), "</b>"),
-            paste0("Race/Ethnicity: <b>", race_ethnicity_display, "</b>"),
-            paste0("Risk of Bias: <b>", orig_data$overall_rating, "</b>")
+            paste0("Race/Ethnicity: <b>", race_ethnicity_display, "</b>")
+            
           )
           
           return(paste(tooltip_parts, collapse = "<br>"))
