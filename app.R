@@ -634,11 +634,11 @@ document.addEventListener("DOMContentLoaded", function() {
                         "Standardized Mean Difference (SMD) from Depression Prevention Interventions"
                       ),
                       div(
-                        style = "margin-left: 10px; margin-top: 6px; font-size: 16px",
-                        "A negative SMD indicates an intervention benefit"
+                        style = "margin-left: 10px; margin-top: 6px; font-size: 14px",
+                        "For Educational Achivement and Well-Being, a positive SMD indicates an intervention benefit. For all other outcomes, a negative SMD indicates an intervention benefit."
                       ),
                       div(
-                        style = "margin-left: 10px; margin-top: 6px; margin-bottom: 6px; font-size: 14px",
+                        style = "margin-left: 10px; margin-top: 6px; margin-bottom: 6px; font-size: 12px",
                         "*Outcomes where effect size was originally reported as categorical in our meta-analysis (e.g., odds ratio) but re-computed to SMD for comparison in this table."
                       ),
                       reactableOutput("forest_tbl", width = "100%")
@@ -2177,7 +2177,7 @@ server <- function(input, output, session) {
   }
   
   # 4. FOREST SVG FUNCTION 
-  make_forest_svg <- function(yi, lower, upper, n, max_n = NULL, row_height = 70, show_axis = FALSE, tooltip_html = NULL, hover_enabled = TRUE) {
+  make_forest_svg <- function(yi, lower, upper, n, outcome_domain, max_n = NULL, row_height = 70, show_axis = FALSE, tooltip_html = NULL, hover_enabled = TRUE) {
     min_x <- -3.5; max_x <- 3.5
     ref_width <- 500
     svg_height <- if (show_axis) 48 else row_height
@@ -2238,8 +2238,18 @@ server <- function(input, output, session) {
         ),
         htmltools::tags$circle(
           cx = scale(yi), cy = center_y, r = r,
-          fill = ifelse(yi < -0.03, "#8ABB40",
-                        ifelse(yi > 0.03, "#8D1D58", "#B0B0B0")),
+          # fill = ifelse(yi < -0.03, "#8ABB40",
+          #               ifelse(yi > 0.03, "#8D1D58", "#B0B0B0")),
+          fill = ifelse(
+            outcome_domain %in% c("Well-being", "Educational achievement"),
+            # For these outcomes: POSITIVE is beneficial (green)
+            ifelse(yi > 0.02, "#8ABB40",
+                   ifelse(yi < -0.02, "#8D1D58", "#B0B0B0")),
+            # All other outcomes: NEGATIVE is beneficial (green)
+            ifelse(yi < -0.02, "#8ABB40",
+                   ifelse(yi > 0.02, "#8D1D58", "#B0B0B0"))
+          ),
+          
           stroke = "#222", "stroke-width" = 1
         )
       )
@@ -2528,6 +2538,7 @@ server <- function(input, output, session) {
       svg_list <- mapply(
         make_forest_svg,
         merged_forest$SMD, merged_forest$lower, merged_forest$upper, merged_forest$n,
+        original_forest_pre_blank$`Outcome Domain`,
         max_n, row_height, FALSE, tooltip_html_texts, hover_state,
         SIMPLIFY = FALSE
       )
@@ -2687,7 +2698,7 @@ server <- function(input, output, session) {
           },
           header = htmltools::HTML(
             make_forest_svg(
-              NA, NA, NA, NA, max_n, 400, show_axis = TRUE, tooltip_html = NULL, hover_enabled = FALSE
+              NA, NA, NA, NA, "Unclear", max_n, 400, show_axis = TRUE, tooltip_html = NULL, hover_enabled = FALSE
             )
           ),
           headerStyle = list(
