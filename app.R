@@ -2241,7 +2241,7 @@ server <- function(input, output, session) {
           # fill = ifelse(yi < -0.03, "#8ABB40",
           #               ifelse(yi > 0.03, "#8D1D58", "#B0B0B0")),
           fill = ifelse(
-            outcome_domain %in% c("Well-being", "Educational achievement"),
+            outcome_domain %in% c("Well-being", "Educational Achievement"),
             # For these outcomes: POSITIVE is beneficial (green)
             ifelse(yi > 0.02, "#8ABB40",
                    ifelse(yi < -0.02, "#8D1D58", "#B0B0B0")),
