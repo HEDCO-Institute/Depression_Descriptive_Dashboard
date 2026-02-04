@@ -170,7 +170,7 @@ merged <- merged %>%
     percent_asian  = ifelse(percent_asian  == -999, NA_real_, percent_asian),
     percent_latinx = ifelse(percent_latinx == -999, NA_real_, percent_latinx),
     percent_other  = ifelse(percent_other  == -999, NA_real_, percent_other)
-  )
+  ) 
 
 # UI ---------------------------------------------------------
 # Define UI for application
@@ -1155,9 +1155,9 @@ server <- function(input, output, session) {
     studies_clean <- data %>%
       #mutate(number_schools = ifelse(number_schools == -999, NA, number_schools)) %>% # Moved to pre-UI to speed up app
       filter(!is.na(number_schools)) %>%
-      distinct(study_author_year, .keep_all = TRUE) %>%
+      distinct(study, .keep_all = TRUE) %>%
       mutate(
-        hover_text = paste0("Study: <b>", study_author_year, "</b><br>No. of Schools: <b>", number_schools, "</b>")
+        hover_text = paste0("Study: <b>", study, "</b><br>No. of Schools: <b>", number_schools, "</b>")
       )
     
     if (nrow(studies_clean) == 0) {
@@ -1245,9 +1245,9 @@ server <- function(input, output, session) {
     studies_clean <- data %>%
       #mutate(number_classrooms = ifelse(number_classrooms == -999, NA, number_classrooms)) %>%
       filter(!is.na(number_classrooms)) %>%
-      distinct(study_author_year, .keep_all = TRUE) %>%
+      distinct(study, .keep_all = TRUE) %>%
       mutate(
-        hover_text = paste0("Study: <b>", study_author_year, "</b><br>No. of Classrooms: <b>", number_classrooms, "</b>")
+        hover_text = paste0("Study: <b>", study, "</b><br>No. of Classrooms: <b>", number_classrooms, "</b>")
       )
     
     if (nrow(studies_clean) == 0) {
@@ -1333,10 +1333,10 @@ server <- function(input, output, session) {
     studies_clean <- data %>%
       #mutate(number_participants = ifelse(number_participants == -999, NA, number_participants)) %>%
       filter(!is.na(number_participants) & number_participants > 0) %>%
-      distinct(study_author_year, .keep_all = TRUE) %>%
+      distinct(study, .keep_all = TRUE) %>%
       mutate(
-        label = paste0(study_author_year, "\nn=", number_participants),
-        hover_text = paste0("Study: <b>", study_author_year, "</b><br>No. of Students: <b>", number_participants, "</b>")
+        label = paste0(study, "\nn=", number_participants),
+        hover_text = paste0("Study: <b>", study, "</b><br>No. of Students: <b>", number_participants, "</b>")
       )
     
     if (nrow(studies_clean) == 0) return(create_compact_no_data_plot())
@@ -1389,9 +1389,9 @@ server <- function(input, output, session) {
     studies_clean <- data %>%
       #mutate(average_age = ifelse(average_age == -999, NA, average_age)) %>%
       filter(!is.na(average_age)) %>%
-      distinct(study_author_year, .keep_all = TRUE) %>%
+      distinct(study, .keep_all = TRUE) %>%
       mutate(
-        hover_text = paste0("Study: <b>", study_author_year, "</b><br>Average Age: <b>", average_age, "</b>")
+        hover_text = paste0("Study: <b>", study, "</b><br>Average Age: <b>", average_age, "</b>")
       )
     
     if (nrow(studies_clean) == 0) {
@@ -1480,10 +1480,10 @@ server <- function(input, output, session) {
     studies_clean <- data %>%
       #mutate(percent_female = ifelse(percent_female == -999, NA, percent_female)) %>%
       filter(!is.na(percent_female)) %>%
-      distinct(study_author_year, .keep_all = TRUE) %>%
+      distinct(study, .keep_all = TRUE) %>%
       mutate(percent_female = percent_female * 100) %>%
       mutate(
-        hover_text = paste0("Study: <b>", study_author_year, "</b><br>Percent Female: <b>", percent_female, "%", "</b>")
+        hover_text = paste0("Study: <b>", study, "</b><br>Percent Female: <b>", percent_female, "%", "</b>")
       )
     
     if (nrow(studies_clean) == 0) {
@@ -1650,9 +1650,9 @@ server <- function(input, output, session) {
       #mutate(percent_FRPL = ifelse(percent_FRPL == -999, NA, percent_FRPL)) %>%
       filter(!is.na(percent_FRPL)) %>%
       mutate(percent_FRPL = percent_FRPL * 100) %>%
-      distinct(study_author_year, .keep_all = TRUE) %>%
+      distinct(study, .keep_all = TRUE) %>%
       mutate(
-        hover_text = paste0("Study: <b>", study_author_year, "</b><br>Percent FRPL: <b>", round(percent_FRPL, 1), "%</b>")
+        hover_text = paste0("Study: <b>", study, "</b><br>Percent FRPL: <b>", round(percent_FRPL, 1), "%</b>")
       )
     
     if (nrow(studies_clean) == 0) {
@@ -1744,10 +1744,10 @@ server <- function(input, output, session) {
       filter(!is.na(percent_ELL)) %>%
       filter(is.finite(percent_ELL)) %>%
       mutate(percent_ELL = percent_ELL * 100) %>%
-      distinct(study_author_year, .keep_all = TRUE) %>%
+      distinct(study, .keep_all = TRUE) %>%
       mutate(
         percent_ELL_rounded = round(percent_ELL, 1),
-        hover_text = paste0("Study: <b>", as.character(study_author_year), "</b><br>Percent ELL: <b>", percent_ELL_rounded, "%</b>")
+        hover_text = paste0("Study: <b>", as.character(study), "</b><br>Percent ELL: <b>", percent_ELL_rounded, "%</b>")
       )
     
     if (nrow(studies_clean) == 0) {
